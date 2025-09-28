@@ -2343,41 +2343,45 @@ def render_html_content(
     return html
 
 
-def render_feishu_content(report_data: Dict, update_info: Optional[Dict] = None, mode: str = "daily") -> str:
-    """渲染飞书内容，去除不支持的HTML标签，使用emoji和加粗提升可读性"""
+def render_feishu_content(report_data, update_info=None, mode="daily"):
     text_content = ""
+
     if report_data["stats"]:
-        text_content += "📊 **热点词汇统计**\n\n"
+        text_content += f"📊 **热点词汇统计**\n\n"
+
     total_count = len(report_data["stats"])
+
     for i, stat in enumerate(report_data["stats"]):
         word = stat["word"]
         count = stat["count"]
-        sequence_display = f"[{i + 1}/{total_count}]"
-        
+        sequence_display = f"<font color='grey'>[{i + 1}/{total_count}]</font>"
+
         if count >= 10:
-            prefix = "🔥"
-            count_str = f"**{count}**"
+            text_content += f"🔥 {sequence_display} **{word}** : <font color='red'>{count}</font> 条\n\n"
         elif count >= 5:
-            prefix = "📈"
-            count_str = f"**{count}**"
+            text_content += f"📈 {sequence_display} **{word}** : <font color='orange'>{count}</font> 条\n\n"
         else:
-            prefix = "📌"
-            count_str = str(count)
-        
-        # 不使用html标签，改用emoji + **加粗** + 纯文本数字
-        text_content += f"{prefix} {sequence_display} **{word}** : {count_str} 条\n\n"
-        
+            text_content += f"📌 {sequence_display} **{word}** : {count} 条\n\n"
+
         for j, title_data in enumerate(stat["titles"], 1):
-            formatted_title = format_title_for_platform(
-                "feishu", title_data, show_source=True
-            )
-            text_content += f"  {j}. {formatted_title}\n"
-            if j < len(stat["titles"]):
-                text_content += "\n"
-        
+            # 优化：只显示平台、标题（带链接）、排名、时间、次数
+            platform = f"<font color='grey'>[{title_data['source_name']}]</font>"
+            title = title_data['title']
+            url = title_data.get('mobile_url') or title_data.get('url', '')
+            link = f"[{title}]({url})" if url else title
+            rank = ""
+            if title_data.get("ranks"):
+                min_rank = min(title_data["ranks"])
+                rank = f"<font color='red'>[{min_rank}]</font>" if min_rank <= stat.get("rank_threshold", 5) else f"[{min_rank}]"
+            time_disp = f"<font color='grey'>- {title_data['time_display']}</font>" if title_data.get("time_display") else ""
+            count_info = f"<font color='green'>({title_data['count']}次)</font>" if title_data.get("count", 1) > 1 else ""
+            is_new = "🆕 " if title_data.get("is_new") else ""
+
+            text_content += f"  {j}. {platform} {is_new}{link} {rank} {time_disp} {count_info}\n"
+
         if i < len(report_data["stats"]) - 1:
             text_content += f"\n{CONFIG['FEISHU_MESSAGE_SEPARATOR']}\n\n"
-    
+
     if not text_content:
         if mode == "incremental":
             mode_text = "增量模式下暂无新增匹配的热点词汇"
@@ -2386,43 +2390,46 @@ def render_feishu_content(report_data: Dict, update_info: Optional[Dict] = None,
         else:
             mode_text = "暂无匹配的热点词汇"
         text_content = f"📭 {mode_text}\n\n"
-    
-    # 其他部分保持不变，去掉font标签
-    
-    # 新增热点新闻
+
     if report_data["new_titles"]:
         if text_content and "暂无匹配" not in text_content:
             text_content += f"\n{CONFIG['FEISHU_MESSAGE_SEPARATOR']}\n\n"
+
         text_content += (
             f"🆕 **本次新增热点新闻** (共 {report_data['total_new_count']} 条)\n\n"
         )
+
         for source_data in report_data["new_titles"]:
             text_content += (
                 f"**{source_data['source_name']}** ({len(source_data['titles'])} 条):\n"
             )
+
             for j, title_data in enumerate(source_data["titles"], 1):
-                title_data_copy = title_data.copy()
-                title_data_copy["is_new"] = False
-                formatted_title = format_title_for_platform(
-                    "feishu", title_data_copy, show_source=False
-                )
-                text_content += f"  {j}. {formatted_title}\n"
+                title = title_data['title']
+                url = title_data.get('mobile_url') or title_data.get('url', '')
+                link = f"[{title}]({url})" if url else title
+                rank = ""
+                if title_data.get("ranks"):
+                    min_rank = min(title_data["ranks"])
+                    rank = f"<font color='red'>[{min_rank}]</font>" if min_rank <= stat.get("rank_threshold", 5) else f"[{min_rank}]"
+                time_disp = f"<font color='grey'>- {title_data['time_display']}</font>" if title_data.get("time_display") else ""
+                count_info = f"<font color='green'>({title_data['count']}次)</font>" if title_data.get("count", 1) > 1 else ""
+                text_content += f"  {j}. {link} {rank} {time_disp} {count_info}\n"
+
             text_content += "\n"
-    
-    # 失败平台信息
-    if report_data["failed_ids"]:
-        if text_content and "暂无匹配" not in text_content:
-            text_content += f"\n{CONFIG['FEISHU_MESSAGE_SEPARATOR']}\n\n"
-        text_content += "⚠️ **数据获取失败的平台：**\n\n"
-        for i, id_value in enumerate(report_data["failed_ids"], 1):
-            text_content += f"  • ❌ {id_value}\n"
-    
+
+    # 不再显示“数据获取失败的平台”
+
     now = get_beijing_time()
-    text_content += f"\n\n更新时间：{now.strftime('%Y-%m-%d %H:%M:%S')}"
+    text_content += (
+        f"\n\n<font color='grey'>更新时间：{now.strftime('%Y-%m-%d %H:%M:%S')}</font>"
+    )
+
     if update_info:
-        text_content += f"\nTrendRadar 发现新版本 {update_info['remote_version']}，当前 {update_info['current_version']}"
-    
+        text_content += f"\n<font color='grey'>TrendRadar 发现新版本 {update_info['remote_version']}，当前 {update_info['current_version']}</font>"
+
     return text_content
+
 
 
 def render_dingtalk_content(
