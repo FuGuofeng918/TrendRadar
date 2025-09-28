@@ -1564,7 +1564,7 @@ def generate_html_report(
 
     file_path = get_output_path("html", filename)
 
-    report_data = prepare_report_data(stats, failed_ids=[], new_titles=[], id_to_name, mode)
+    report_data = prepare_report_data(stats, [], [], id_to_name, mode)
 
     html_content = render_html_content(
         report_data, total_titles, is_daily_summary, mode, update_info
