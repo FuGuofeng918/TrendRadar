@@ -2347,7 +2347,7 @@ def render_feishu_content(report_data, update_info=None, mode="daily"):
     text_content = ""
 
     if report_data["stats"]:
-        text_content += f"📊 **热点词汇统计**\n\n"
+        text_content += "📊 热点词汇统计\n\n"
 
     total_count = len(report_data["stats"])
 
@@ -2357,29 +2357,27 @@ def render_feishu_content(report_data, update_info=None, mode="daily"):
         sequence_display = f"[{i + 1}/{total_count}]"
 
         if count >= 10:
-            text_content += f"🔥 {sequence_display} **{word}** : 🔴 {count} 条\n\n"
+            text_content += f"🔥 {sequence_display} {word} : {count} 条\n\n"
         elif count >= 5:
-            text_content += f"📈 {sequence_display} **{word}** : 🟠 {count} 条\n\n"
+            text_content += f"📈 {sequence_display} {word} : {count} 条\n\n"
         else:
-            text_content += f"📌 {sequence_display} **{word}** : {count} 条\n\n"
+            text_content += f"📌 {sequence_display} {word} : {count} 条\n\n"
 
         for j, title_data in enumerate(stat["titles"], 1):
-            # 平台、标题（加粗+可点击）、排名、时间、次数
             platform = f"[{title_data['source_name']}]"
             title = title_data['title']
             url = title_data.get('mobile_url') or title_data.get('url', '')
-            link = f"**[{title}]({url})**" if url else f"**{title}**"
-
             rank = ""
             if title_data.get("ranks"):
                 min_rank = min(title_data["ranks"])
-                rank = f"[{min_rank}⭐]" if min_rank <= stat.get("rank_threshold", 5) else f"[{min_rank}]"
-
+                rank = f"[{min_rank}]"
             time_disp = f"- {title_data['time_display']}" if title_data.get("time_display") else ""
             count_info = f"({title_data['count']}次)" if title_data.get("count", 1) > 1 else ""
             is_new = "🆕 " if title_data.get("is_new") else ""
 
-            text_content += f"  {j}. {platform} {is_new}{link} {rank} {time_disp} {count_info}\n"
+            text_content += f"  {j}. {platform} {is_new}{title} {rank} {time_disp} {count_info}\n"
+            if url:
+                text_content += f"     链接: {url}\n"
 
         if i < len(report_data["stats"]) - 1:
             text_content += f"\n{CONFIG['FEISHU_MESSAGE_SEPARATOR']}\n\n"
@@ -2393,36 +2391,7 @@ def render_feishu_content(report_data, update_info=None, mode="daily"):
             mode_text = "暂无匹配的热点词汇"
         text_content = f"📭 {mode_text}\n\n"
 
-    if report_data["new_titles"]:
-        if text_content and "暂无匹配" not in text_content:
-            text_content += f"\n{CONFIG['FEISHU_MESSAGE_SEPARATOR']}\n\n"
-
-        text_content += (
-            f"🆕 **本次新增热点新闻** (共 {report_data['total_new_count']} 条)\n\n"
-        )
-
-        for source_data in report_data["new_titles"]:
-            text_content += (
-                f"**{source_data['source_name']}** ({len(source_data['titles'])} 条):\n"
-            )
-
-            for j, title_data in enumerate(source_data["titles"], 1):
-                title = title_data['title']
-                url = title_data.get('mobile_url') or title_data.get('url', '')
-                link = f"**[{title}]({url})**" if url else f"**{title}**"
-
-                rank = ""
-                if title_data.get("ranks"):
-                    min_rank = min(title_data["ranks"])
-                    rank = f"[{min_rank}⭐]" if min_rank <= stat.get("rank_threshold", 5) else f"[{min_rank}]"
-
-                time_disp = f"- {title_data['time_display']}" if title_data.get("time_display") else ""
-                count_info = f"({title_data['count']}次)" if title_data.get("count", 1) > 1 else ""
-                text_content += f"  {j}. {link} {rank} {time_disp} {count_info}\n"
-
-            text_content += "\n"
-
-    # 不再显示“数据获取失败的平台”
+    # 删除新增热点新闻部分
 
     now = get_beijing_time()
     text_content += f"\n\n更新时间：{now.strftime('%Y-%m-%d %H:%M:%S')}"
