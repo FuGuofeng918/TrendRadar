@@ -2375,9 +2375,13 @@ def render_feishu_content(report_data, update_info=None, mode="daily"):
             count_info = f"({title_data['count']}次)" if title_data.get("count", 1) > 1 else ""
             is_new = "🆕 " if title_data.get("is_new") else ""
 
-            text_content += f"  {j}. {platform} {is_new}{title} {rank} {time_disp} {count_info}\n"
+            # 关键：将链接包裹在标题上
             if url:
-                text_content += f"     链接: {url}\n"
+                title_with_link = f"[{title}]({url})"
+            else:
+                title_with_link = title
+
+            text_content += f"  {j}. {platform} {is_new}{title_with_link} {rank} {time_disp} {count_info}\n"
 
         if i < len(report_data["stats"]) - 1:
             text_content += f"\n{CONFIG['FEISHU_MESSAGE_SEPARATOR']}\n\n"
@@ -2390,8 +2394,6 @@ def render_feishu_content(report_data, update_info=None, mode="daily"):
         else:
             mode_text = "暂无匹配的热点词汇"
         text_content = f"📭 {mode_text}\n\n"
-
-    # 删除新增热点新闻部分
 
     now = get_beijing_time()
     text_content += f"\n\n更新时间：{now.strftime('%Y-%m-%d %H:%M:%S')}"
